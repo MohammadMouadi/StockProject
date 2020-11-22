@@ -12,5 +12,5 @@ urlpatterns = [
 	path('accounts/myaccount/',views.my_account,name='my_account'),
 	path('accounts/myaccount/updatemyaccount',views.update_my_account,name ='update_my_account'),
 	path('trade/', views.trade, name='trade'),
-	path('compare/', views.compare, name='compare')
-]
+	path('compare/', views.compare, name='compare'),
+	path('topbuysell', views.TopBuySellListView.as_view(), name='top_buy_sell'),]

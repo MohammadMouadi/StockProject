@@ -1,19 +1,25 @@
+import logging
+from itertools import chain
+
 import requests
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
+from django.db.models import Sum, Q, F, Func, FloatField, ExpressionWrapper, CharField, Value
+from django.views import generic
+from django.db.models.functions import ExtractMonth, ExtractYear, Concat, ExtractDay
 from myapp import stock_api
 from myapp.models import Stock, UserProfile, Transaction
 from myapp.forms import UserProfileForm, UserForm
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.models import User
-from django.contrib.auth import logout,login,authenticate
+from django.contrib.auth import logout, login, authenticate
 from django.contrib import messages
 from django.contrib.auth import logout
 from . import stock_api, models
 from datetime import datetime
 from myapp.logic import trade_logic, register_logic
 from django.views.decorators.csrf import csrf_exempt
-from myapp.exceptions import custom_exception,trade_excpetions
+from myapp.exceptions import custom_exception, trade_excpetions
 
 
 # View for the home page - a list of 20 of the most active stocks
@@ -45,6 +51,8 @@ def register(request):
 
         register_logic.create_profile(newuser)
 
+        logger = logging.getLogger('custom_log')
+        logger.debug(f'{newuser.first_name}  {newuser.last_name} rigestered .')
         # to let the user login after registeration
         user = authenticate(username=email, password=password)
         if user is not None:
@@ -143,3 +151,52 @@ def trade(request):
         context.update({'error': str(e)})
 
     return render(request, 'trade.html', context)
+
+
+class TopBuySellListView(generic.ListView):
+    model = Transaction
+    context_object_name = 'top_buy_sell_list'  # your own name for the list as a template variable
+
+    template_name = 'index.html'
+
+    def get_queryset(self, **kwargs):
+        params = self.request.GET
+
+        ts_filtered = Transaction.objects.filter(trans_date_time__lte=params['to_date'],
+                                                 trans_date_time__gte=params['from_date'])
+
+        if self.request.user.is_authenticated and params.get('current_user_only', '0') == '1':
+            ts_filtered = ts_filtered.filter(user=self.request.user)
+
+        if params.get('CB_Stock', '0') == '1':
+            stock_symbol = 'stock_symbol'
+        else:
+            stock_symbol = "user"
+
+        if params['RBPeriod'] == 'Annually':
+            ts_values = ts_filtered.values(stock_symbol, year=ExtractYear('trans_date_time'))
+            ts_annonate = ts_values.annotate(f_date=F('year'))
+
+
+        elif params['RBPeriod'] == 'Monthly':
+            ts_values = ts_filtered.values(stock_symbol, month=ExtractMonth('trans_date_time'),
+                                           year=ExtractYear('trans_date_time'), )
+            ts_annonate = ts_values.annotate(f_date=ExpressionWrapper(
+                Concat(F('month'), Value(' / '), F('year')), output_field=CharField()))
+
+        elif params['RBPeriod'] == 'Daily':
+            ts_values = ts_filtered.values(stock_symbol, day=ExtractDay('trans_date_time'),
+                                           month=ExtractMonth('trans_date_time'),
+                                           year=ExtractYear('trans_date_time'))
+            ts_annonate = ts_values.annotate(f_date=ExpressionWrapper(
+                Concat(F('day'), Value(' / '), F('month'), Value(' / '), F('year')), output_field=CharField()))
+
+        return ts_annonate.annotate(
+            full_name=Concat(F('user__first_name'), Value(' '), F('user__last_name')),
+
+            sell=Sum(F('quantity') * F('price'), filter=Q(quantity__gt=0),
+                     output_field=FloatField()),
+            buy=Sum(F('quantity') * F('price'), filter=Q(quantity__lt=0),
+                    output_field=FloatField())
+
+        ).order_by('f_date')

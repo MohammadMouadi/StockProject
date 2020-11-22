@@ -134,3 +134,70 @@ CACHES = {
         'LOCATION': '/var/tmp/django_cache',
     }
 }
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime}  {filename} {funcName}   {message}',
+            'style': '{',
+        },
+        'format_request': {
+            'format': '{levelname}  {asctime}    {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file1': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': './logs/debug.log',
+            'formatter': 'simple'
+        },
+        'file_users': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': './logs/users.log',
+            'formatter': 'verbose'
+        },
+        'file_backends': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': './logs/backends.log',
+            'formatter': 'verbose'
+        },
+        'file_request': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': './logs/requests.log',
+            'formatter': 'format_request'
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file1'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'django.db.backends': {
+            'handlers': ['file_backends'],
+            'level': 'DEBUG',
+
+        },
+        'django.request': {
+            'handlers': ['file_request'],
+            'level': 'DEBUG',
+
+        },
+        'custom_log': {
+            'handlers': ['file_users'],
+            'level': 'DEBUG',
+
+        }
+    },
+}
