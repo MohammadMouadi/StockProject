@@ -1,3 +1,5 @@
+from django.db.models import Sum
+
 from myapp import stock_api
 from myapp import models
 from myapp.exceptions import trade_excpetions, custom_exception
@@ -20,8 +22,5 @@ def create_transaction(user, stock_symbol, number_of_stocks, price):
 
 
 def get_number_of_stocks(user, stock_symbol):
-    transactions = models.Transaction.objects.filter(user=user, stock_symbol=stock_symbol)
-    total_number_of_stocks = 0
-    for transaction in transactions:
-        total_number_of_stocks += transaction.quantity
-    return total_number_of_stocks
+    transactions = models.Transaction.objects.filter(user=user, stock_symbol=stock_symbol).aggregate(Sum('quantity'))
+    return transactions['quantity__sum'] if transactions['quantity__sum'] else 0
