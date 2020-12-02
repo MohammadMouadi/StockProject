@@ -26,6 +26,7 @@ class BaseTest(TestCase):
 class TransactionModelTest(BaseTest):
 
     def test_transaction_not_None(self):
+        self.assertEquals(1,2)
         transaction = Transaction.objects.get()
         self.assertIsNotNone(transaction.user_id)
 
